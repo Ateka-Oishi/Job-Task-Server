@@ -1,33 +1,124 @@
-const express = require('express');
-const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
-require('dotenv').config()
+const express = require("express");
 const app = express();
+const cors = require("cors");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
+require("dotenv").config();
 
-//middleware
-app.use(cors());
-app.use(express.json);
+const allowedOrigins = ["http://localhost:5173"];
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+app.use(express.json());
 
-
+const apiVersion = "/api/v0.1";
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.kv8mjwg.mongodb.net/?retryWrites=true&w=majority`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    const database = client.db("TaskManagementDB");
+    const user_collection = database.collection("user_collection");
+    const todo_collection = database.collection("todo_collection");
+
+    app.post(`${apiVersion}/user`, async (req, res) => {
+      const data = req.body;
+      const result = await user_collection.insertOne(data);
+      res.send(result);
+    });
+
+    app.post(`${apiVersion}/todo`, async (req, res) => {
+      const data = req.body;
+      const result = await todo_collection.insertOne(data);
+      res.send(result);
+    });
+    app.get(`${apiVersion}/todo/:uid`, async (req, res) => {
+      const uid = req.params.uid;
+      const result = await todo_collection.find({ "user.uid": uid }).toArray();
+
+      if (result.length === 0) {
+        // No matching todos found for the provided uid
+        res.status(404).send({
+          status: false,
+          status_code: 404,
+          status_message: "Data not found",
+          error_message: "No todos found for the provided UID",
+          data: result,
+        });
+      } else {
+        // Todos found for the provided uid
+        res.send({
+          status: true,
+          status_code: 200,
+          status_message: "Data found successfully",
+          data: result,
+        });
+      }
+    });
+
+    app.patch(`${apiVersion}/todo/:id`, async (req, res) => {
+      const todoId = req.params.id;
+      const { status } = req.body; // Assuming you send the new status in the request body
+
+      try {
+        const result = await todo_collection.findOneAndUpdate(
+          { _id: new ObjectId(todoId) },
+          { $set: { status: status } },
+          { returnDocument: "after" } // Return the updated document
+        );
+
+        if (!result.value) {
+          // No matching todo found for the provided ID
+          res.status(404).send({
+            status: false,
+            status_code: 404,
+            status_message: "Todo not found",
+            error_message: "No todo found for the provided ID",
+            data: null,
+          });
+        } else {
+          // Todo found and updated successfully
+          res.send({
+            status: true,
+            status_code: 200,
+            status_message: "Todo updated successfully",
+            data: result.value,
+          });
+        }
+      } catch (error) {
+        console.error("Error updating todo:", error);
+        res.status(500).send({
+          status: false,
+          status_code: 500,
+          status_message: "Internal Server Error",
+          error_message: "Error updating todo",
+          data: null,
+        });
+      }
+    });
+    app.delete(`${apiVersion}/todo/:id`, async (req, res) => {
+      const { id } = req.params;
+      const query = { _id: new ObjectId(id) };
+      const result = await todo_collection.deleteOne(query);
+      res.send(result);
+    });
+
+    await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -35,11 +126,16 @@ async function run() {
 }
 run().catch(console.dir);
 
+app.use((req, res, next) => {
+  res.status(404).json({
+    status_code: 404,
+    status_message: "Data not found",
+    error_details:
+      "The requested endpoint does not exist or the resource is not available.",
+    requested_url: req.originalUrl,
+  });
+});
 
-app.get('/', (req, res) =>{
-    res.send('Task Management is running')
-})
-
-app.listen(port, () =>{
-    console.log(`Task Management Sever is running on port ${port}`);
-})
+app.listen(port, () => {
+  console.log(`Server running on ${port}`);
+});
