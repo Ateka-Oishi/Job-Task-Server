@@ -1,8 +1,8 @@
 # Website : Task Management
 
-<!-- Client Live Link : https://insightmint.web.app -->
+Client Live Link : https://todoist-3862f.web.app
 
-<!-- Server Live Link : https://insight-mint-server.vercel.app -->
+Server Live Link : https://todoist-server.vercel.app
 
 # Client and Server Site CODE Link
 

@@ -12,7 +12,7 @@
     "server",
     "to-do"
   ],
-  "author": "MahaTab Hossen Sudip",
+  "author": "Ateka",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",

@@ -5,7 +5,11 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
 
-const allowedOrigins = ["http://localhost:5173"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://task-management-1014.web.app",
+  "https://task-management-1014.firebaseapp.com",
+];
 app.use(
   cors({
     origin: allowedOrigins,
@@ -15,7 +19,7 @@ app.use(
 app.use(express.json());
 
 const apiVersion = "/api/v0.1";
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.kv8mjwg.mongodb.net/?retryWrites=true&w=majority`;
+const uri = process.env.MongoDB_URI;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -110,6 +114,32 @@ async function run() {
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
       const result = await todo_collection.deleteOne(query);
+      res.send(result);
+    });
+    app.get(`${apiVersion}/single-todo/:id`, async (req, res) => {
+      const { id } = req.params;
+      const filter = { _id: new ObjectId(id) };
+      const result = await todo_collection.findOne(filter);
+      res.send(result);
+    });
+    app.patch(`${apiVersion}/update-todo/:id`, async (req, res) => {
+      const { id } = req.params;
+      const body = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: false };
+      const updateDoc = {
+        $set: {
+          name: body?.name,
+          description: body?.description,
+          priority: body?.priority,
+          deadline: body?.deadline,
+        },
+      };
+      const result = await todo_collection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
       res.send(result);
     });
 
